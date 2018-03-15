@@ -9,3 +9,7 @@
 ## combotime: ##
 
 **logo.html?width=400&dl=1**
+
+## ressources ##
+http://qrohlf.com/trianglify/  
+https://github.com/qrohlf/trianglify
