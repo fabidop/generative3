@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Generative3Logo</title>
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/trianglify/1.1.0/trianglify.min.js"></script> -->
+    <script src="trianglify.min.js"></script>
+    
+    <style type ="text/css">
+        @font-face {
+            font-family:"LemonMilk";
+            src: url("LemonMilk.eot?") format("eot"),url("LemonMilk.woff") format("woff"),url("LemonMilk.ttf") format("truetype"),url("LemonMilk.svg#LemonMilk") format("svg");
+            font-weight:normal;
+            font-style:normal;
+            }
+
+        body {
+            font-family: 'LemonMilk';
+        }
+
+        .center {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+    </style>
+</head>
+<body>
+    <div id="wrapper" class="center">   
+    </div>
+    
+    <script type="application/javascript">
+        //input to edit for size of renderd picture
+        var base = 200;
+        var download = false;
+
+        // input to edit for fine tuning
+        var strichVerhältnisWidthToHeight = 4; //greater then 1
+        var strichAbstandsDivider = 10;
+        var middleshapeHeightDivider = 2;
+        var middleTextUnderlineHeightDivider = 15; 
+        var middleTextUnderlineEmptyWidthDivider = 4;
+        var StrokeCutDegree = 15; //grad
+        var backgroundColor = '#ffffff';
+        var forgroundColor = '#000000';
+
+        // get params
+        var get_params = function(search_string) {
+            // file:///C:/DATA/fdopler/generative3/logoV2.html?a=1&b=3&c=m2-m3-m4-m5
+            var parse = function(params, pairs) {
+            var pair = pairs[0];
+            var parts = pair.split('=');
+            var key = decodeURIComponent(parts[0]);
+            var value = decodeURIComponent(parts.slice(1).join('='));
+            // Handle multiple parameters of the same name
+            if (typeof params[key] === "undefined") {
+                params[key] = value;
+            } else {
+                params[key] = [].concat(params[key], value);
+            }
+            return pairs.length == 1 ? params : parse(params, pairs.slice(1))
+            }
+            // Get rid of leading ?
+            return search_string.length == 0 ? {} : parse({}, search_string.substr(1).split('&'));
+        }
+        var params = get_params(location.search); //console.log(params['c']);
+        
+        // set because parameters not empty
+        if (params['base'] != null && params['base'] != '') base = parseInt(params['base']);
+        if (params['width'] != null && params['width'] != '') base = (parseInt(params['width']))/(3+(2/strichAbstandsDivider));
+        if (params['dl'] != null && params['dl'] != '') download = true;
+
+        //calculated
+        var logoMargin = base;
+        var strichabstand = base/strichAbstandsDivider;
+        var strichhöhe = base*strichVerhältnisWidthToHeight;
+        var height = strichhöhe + 2*logoMargin;
+        var width = 2*logoMargin+3*base+2*strichabstand;
+        var middleshapeHeight = base/middleshapeHeightDivider;
+        var middleTextUnderlineWidth = base/middleTextUnderlineHeightDivider;
+        var middleTextUnderlineEmptyWidth = base/middleTextUnderlineEmptyWidthDivider;
+
+        // global - dont touch!
+        var middleTextWidth;
+
+        // stroke style of first, secound, third
+        var defaults = {
+            cell_size: 75 + getRandomInt(-20,70),
+            variance: 0.75,
+            x_colors: 'random',
+            y_colors: 'match_x',
+            palette: Trianglify.colorbrewer,
+            color_space: 'lab',
+            color_function: false,
+            stroke_width: 1.51,
+            width: base,
+            height: strichhöhe,
+            seed: null
+        };
+
+        // init canvas
+        document.getElementById("wrapper").innerHTML = '<canvas id="myCanvas" width="'+width+'" height="'+height+'"></canvas>';
+        var ctx = document.getElementById("myCanvas").getContext("2d");
+        ctx.fillStyle = backgroundColor;
+        ctx.fillRect(0,0,width,height);
+
+        // draw strokes
+        var first = Trianglify(defaults).canvas();
+        var secound = Trianglify(defaults).canvas();
+        var third = Trianglify(defaults).canvas();
+        ctx.drawImage( first, logoMargin,logoMargin );
+        ctx.drawImage( secound, (logoMargin+strichabstand+base),logoMargin ); 
+        ctx.drawImage( third, (logoMargin+2*strichabstand+2*base),logoMargin ); 
+
+        //cut shape top 
+        ctx.beginPath();
+        ctx.moveTo(logoMargin, logoMargin);
+        ctx.lineTo(logoMargin + 3*base + 2*strichabstand, logoMargin);
+        ctx.lineTo(logoMargin + 3*base + 2*strichabstand, logoMargin+(getTanFromDegrees(StrokeCutDegree)*(3*base+2*strichabstand)));
+        ctx.fillStyle = backgroundColor;
+        ctx.fill();  
+
+        //cut shape bottom
+        ctx.beginPath();
+        ctx.moveTo(logoMargin, logoMargin+strichhöhe);
+        ctx.lineTo(logoMargin + 3*base + 2*strichabstand, logoMargin+strichhöhe);
+        ctx.lineTo(logoMargin, logoMargin+strichhöhe-(getTanFromDegrees(StrokeCutDegree)*(3*base+2*strichabstand)));
+        ctx.fillStyle = backgroundColor;
+        ctx.fill();
+
+        //cut shape middle
+        ctx.fillStyle = backgroundColor;
+        ctx.fillRect(logoMargin,(logoMargin+(strichhöhe/2)-(middleshapeHeight)),(3*base+2*strichabstand),(2*middleshapeHeight));  
+
+        //middle Text + middle Text underline
+        waitForWebfonts(['LemonMilk'], function() {
+            document.fonts.ready.then(function () {
+                //middle Text
+                fitTextOnCanvas("Generative","LemonMilk");
+
+                //middle Text underline
+                drawMiddleTextUnderline();
+
+                //function to call after all is loaded
+                finish();
+            }); 
+        });  
+
+        // helper functions
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function getTanFromDegrees(degrees) {
+            return Math.tan(degrees * Math.PI/180);
+        }
+
+        function waitForWebfonts(fonts, callback) {
+            var loadedFonts = 0;
+            for(var i = 0, l = fonts.length; i < l; ++i) {
+                (function(font) {
+                    var node = document.createElement('span');
+                    // Characters that vary significantly among different fonts
+                    node.innerHTML = 'giItT1WQy@!-/#';
+                    // Visible - so we can measure it - but not on the screen
+                    node.style.position      = 'absolute';
+                    node.style.left          = '-10000px';
+                    node.style.top           = '-10000px';
+                    // Large font size makes even subtle changes obvious
+                    node.style.fontSize      = '300px';
+                    // Reset any font properties
+                    node.style.fontFamily    = 'sans-serif';
+                    node.style.fontVariant   = 'normal';
+                    node.style.fontStyle     = 'normal';
+                    node.style.fontWeight    = 'normal';
+                    node.style.letterSpacing = '0';
+                    document.body.appendChild(node);
+
+                    // Remember width with no applied web font
+                    var width = node.offsetWidth;
+
+                    node.style.fontFamily = font;
+
+                    var interval;
+                    function checkFont() {
+                        // Compare current width with original width
+                        if(node && node.offsetWidth != width) {
+                            ++loadedFonts;
+                            node.parentNode.removeChild(node);
+                            node = null;
+                        }
+
+                        // If all fonts have been loaded
+                        if(loadedFonts >= fonts.length) {
+                            if(interval) {
+                                clearInterval(interval);
+                            }
+                            if(loadedFonts == fonts.length) {
+                                callback();
+                                return true;
+                            }
+                        }
+                    };
+
+                    if(!checkFont()) {
+                        interval = setInterval(checkFont, 50);
+                    }
+                })(fonts[i]);
+            }
+        };
+        
+        function fitTextOnCanvas(text,fontface){    
+            var canvas = document.createElement("CANVAS");
+            canvas.setAttribute("width", (3*base+2*strichabstand));
+            canvas.setAttribute("height", middleshapeHeight+1);
+            var context=canvas.getContext("2d");
+            // start with a large font size
+            var fontsize=300;
+            // lower the font size until the text fits the canvas
+            do{
+                fontsize--;
+                context.font=fontsize+"px "+fontface;
+            }while(context.measureText(text).width>canvas.width)
+            // draw the text
+            middleTextWidth = context.measureText(text).width;
+            context.fillStyle = forgroundColor;
+            context.textBaseline = 'alphabetic';
+            context.fillText(text,0,middleshapeHeight);
+            ctx.drawImage(canvas, logoMargin,(logoMargin+(strichhöhe/2)-(middleshapeHeight/2))-2*middleTextUnderlineWidth);
+        }
+
+        function drawMiddleTextUnderline () {
+            //draw baseline
+            var WidthDifference = (base*3+2*strichabstand)-middleTextWidth;
+            var x = (logoMargin+WidthDifference/2);
+            var y = (logoMargin+(strichhöhe/2)+(middleshapeHeight/2));
+            var w = (3*base+2*strichabstand-WidthDifference/2);
+            var h = (middleTextUnderlineWidth);
+            ctx.fillStyle = forgroundColor;
+            ctx.fillRect(x,y,w,h);  
+            
+            //draw empty timebased lücke in baseline
+            x += middleTextUnderlineEmptyWidth+((w-3*middleTextUnderlineEmptyWidth)/86399)*getCurrentSecound ();
+            y -= 1; //grauslicher hack
+            h += 2; //grauslicher hack
+            w = middleTextUnderlineEmptyWidth;
+            ctx.fillStyle = backgroundColor;
+            ctx.fillRect(x,y,w,h);
+        }
+
+        function getCurrentSecound () {
+            var dt = new Date();
+            var secs = dt.getSeconds() + (60 * dt.getMinutes()) + (60 * 60 * dt.getHours());
+            return secs;
+        }
+
+        function exportCanvasAsPNG() {
+            var canvasElement = document.getElementById("myCanvas");
+            var MIME_TYPE = "image/png";
+            var imgURL = canvasElement.toDataURL(MIME_TYPE);
+            var filename = "null.png"
+            getHash(imgURL).then(hash => {
+                filename = "generative-"+hash+".png";
+                var dlLink = document.createElement('a');
+                dlLink.download = filename;
+                dlLink.href = imgURL;
+                dlLink.dataset.downloadurl = [MIME_TYPE, dlLink.download, dlLink.href].join(':');
+                document.body.appendChild(dlLink);
+                dlLink.click();
+                document.body.removeChild(dlLink);
+            });           
+        }
+
+        function getHash(str, algo = "SHA-256") {
+            let strBuf = new TextEncoder('utf-8').encode(str);
+            return crypto.subtle.digest(algo, strBuf)
+                .then(hash => {
+                window.hash = hash;
+                // here hash is an arrayBuffer, 
+                // so we'll connvert it to its hex version
+                let result = '';
+                const view = new DataView(hash);
+                for (let i = 0; i < hash.byteLength; i += 4) {
+                    result += ('00000000' + view.getUint32(i).toString(16)).slice(-8);
+                }
+                return result;
+                });
+        }
+
+        //last function to call after text has been rendered
+        function finish () {
+            if (download==true) exportCanvasAsPNG();
+        }
+
+        console.log(Trianglify.colorbrewer);
+    </script>
+</body>
+</html>
+
